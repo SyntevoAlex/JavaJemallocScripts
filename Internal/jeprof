@@ -192,6 +192,7 @@ Reporting Granularity:
 
 Output type:
    --text              Generate text report
+   --stacks            Generate stack report (for every leak site, a number of bytes leaked)
    --callgrind         Generate callgrind format to stdout
    --gv                Generate Postscript and display
    --evince            Generate PDF and display
@@ -321,6 +322,7 @@ sub Init() {
   $main::opt_lib_prefix = "";
 
   $main::opt_text = 0;
+  $main::opt_stacks = 0;
   $main::opt_callgrind = 0;
   $main::opt_list = "";
   $main::opt_disasm = "";
@@ -395,6 +397,7 @@ sub Init() {
              "addresses!"     => \$main::opt_addresses,
              "files!"         => \$main::opt_files,
              "text!"          => \$main::opt_text,
+             "stacks!"        => \$main::opt_stacks,
              "callgrind!"     => \$main::opt_callgrind,
              "list=s"         => \$main::opt_list,
              "disasm=s"       => \$main::opt_disasm,
@@ -481,6 +484,7 @@ sub Init() {
   # Check output modes
   my $modes =
       $main::opt_text +
+      $main::opt_stacks +
       $main::opt_callgrind +
       ($main::opt_list eq '' ? 0 : 1) +
       ($main::opt_disasm eq '' ? 0 : 1) +
@@ -624,6 +628,8 @@ sub FilterAndPrint {
                Unparse($total), Units());
       }
       PrintText($symbols, $flat, $cumulative, -1);
+    } elsif ($main::opt_stacks) {
+      PrintStacks($symbols, $profile);
     } elsif ($main::opt_raw) {
       PrintSymbolizedProfile($symbols, $profile, $main::prog);
     } elsif ($main::opt_collapsed) {
@@ -869,6 +875,7 @@ sub InteractiveCommand {
   }
   # Clear all the mode options -- mode is controlled by "$command"
   $main::opt_text = 0;
+  $main::opt_stacks = 0;
   $main::opt_callgrind = 0;
   $main::opt_disasm = 0;
   $main::opt_list = 0;
@@ -1206,6 +1213,30 @@ sub PrintSymbolizedProfile {
     die "--raw/http: jeprof can only dump remote profiles for --raw\n";
     # dump a cpu-format profile to standard out
     PrintProfileData($profile);
+  }
+}
+
+# Print text stacks sorted by number of bytes leaked
+sub PrintStacks {
+  my $symbols = shift;
+  my $profile = shift;
+
+  foreach my $k (sort { GetEntry($profile, $b) <=> GetEntry($profile, $a) || $a cmp $b }
+                 keys(%{$profile})) {
+    my $stack = $k;
+
+    printf("\n[%d bytes leaked]\n", GetEntry($profile, $k));
+
+    for my $symAddress (split /\n/, $stack) {
+	  my $sym = $symAddress;
+      if (exists($symbols->{$symAddress})) {
+        $sym = $symbols->{$symAddress}->[0] . " (" . $symbols->{$symAddress}->[1] . ")";
+        if ($main::opt_addresses) {
+          $sym = $symAddress . " " . $sym;
+        }
+	  }
+      printf("%s\n", $sym);
+    }
   }
 }
 
