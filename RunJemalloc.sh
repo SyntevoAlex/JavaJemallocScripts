@@ -1,8 +1,14 @@
 #!/bin/bash
 
-# How to use:
-# 0) Install jemalloc using your favourive packet manager of build from:
+# Setting up your system:
+# 1) Install jemalloc using your favourive packet manager of build from:
 #    https://github.com/jemalloc/jemalloc
+# 2) Install debug infos for GTK, GLib
+#    This is needed to properly ignore false positives.
+#    Also, it will make it easier for you to understand the findings.
+#    If your OS doesn't support debug infos, you might need to build from sources.
+
+# How to use:
 # 1) Prepend this script to your Java application commandline and run.
 # 2) Find a new '*.heap' file in your current directory
 #    Note that there will be one file per every child process your program runs.
