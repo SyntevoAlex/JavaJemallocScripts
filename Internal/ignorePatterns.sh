@@ -276,6 +276,22 @@ JEPROF_IGNORES+=("AllocateHeap")
 
 # Ignore all sorts of JVM internal memory allocations
 # Example stack:
+#   Chunk::operator new (hotspot/share/memory/arena.cpp:195)
+#   Arena::Amalloc (hotspot/share/memory/arena.hpp:153)
+#   Matcher::match (hotspot/share/opto/matcher.cpp:344)
+#   Compile::Code_Gen (hotspot/share/opto/compile.cpp:2492)
+#   Compile::Compile (hotspot/share/opto/compile.cpp:915)
+#   C2Compiler::compile_method (hotspot/share/opto/c2compiler.cpp:110)
+#   CompileBroker::invoke_compiler_on_method (hotspot/share/compiler/compileBroker.cpp:2192)
+#   CompileBroker::compiler_thread_loop (hotspot/share/compiler/compileBroker.cpp:1879)
+#   JavaThread::thread_main_inner (hotspot/share/runtime/thread.cpp:1860)
+#   Thread::call_run (hotspot/share/runtime/thread.cpp:381)
+#   thread_native_entry (hotspot/os/linux/os_linux.cpp:788)
+#   start_thread (glibc-2.31/nptl/pthread_create.c:477)
+JEPROF_IGNORES+=("Arena::Amalloc")
+
+# Ignore all sorts of JVM internal memory allocations
+# Example stack:
 #   ChunkPool::allocate (hotspot/share/memory/arena.cpp:79 (discriminator 7))
 #   Chunk::operator new (hotspot/share/memory/arena.cpp:190)
 #   Arena::Amalloc (hotspot/share/memory/arena.hpp:153)
@@ -292,6 +308,18 @@ JEPROF_IGNORES+=("AllocateHeap")
 #   thread_native_entry (hotspot/os/linux/os_linux.cpp:788)
 #   start_thread (glibc-2.31/nptl/pthread_create.c:477)
 JEPROF_IGNORES+=("ChunkPool::allocate")
+
+# Ignore stuff related to ZIP files, this is probably used in JAR loading
+# Example stack:
+#   inflate_ensure_window (./inflate.c:408)
+#   doInflate (java.base/share/native/libzip/Inflater.c:140)
+JEPROF_IGNORES+=("inflate_ensure_window")
+
+# Ignore stuff related to ZIP files, this is probably used in JAR loading
+# Example stack:
+#   inflateInit2_ (./inflate.c:243)
+#   Java_java_util_zip_Inflater_init (java.base/share/native/libzip/Inflater.c:67)
+JEPROF_IGNORES+=("inflateInit2_")
 
 # Ignore everything that happens when creating a VM
 # Example stack:
