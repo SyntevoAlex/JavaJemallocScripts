@@ -17,6 +17,13 @@
 # 3) Use 'ParseHeapFile.sh' on this file to get human-readable output.
 
 # --------------
+# Configure GLib
+# --------------
+
+# Do not use GLib's internal allocators that will not be visible to leak detector
+export G_SLICE=always-malloc
+
+# --------------
 # Configure jemalloc
 # --------------
 
