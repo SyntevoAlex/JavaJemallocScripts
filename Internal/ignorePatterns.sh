@@ -52,6 +52,24 @@ JEPROF_IGNORES=()
 JEPROF_IGNORES+=("FcConfigEnsure")
 
 # ----------------
+# gettext
+# ----------------
+
+# Values returned by gettext() seem to be permanently cached.
+# The documentation says nothing about freeing them.
+# Example stack:
+#   textdomain (??:?)
+#   textdomain (??:?)
+#   textdomain (??:?)
+#   ngettext (??:?)
+#   gettext (??:?)
+#   g_key_file_get_locale_string (glib/gkeyfile.c:2337)
+#   g_desktop_app_info_load_from_keyfile (gio/gdesktopappinfo.c:1797)
+#   g_desktop_app_info_new_from_filename (gio/gdesktopappinfo.c:1898)
+#   g_app_info_get_all (gio/gdesktopappinfo.c:1001)
+JEPROF_IGNORES+=("gettext")
+
+# ----------------
 # glibc
 # ----------------
 
