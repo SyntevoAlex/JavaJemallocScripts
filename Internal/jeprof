@@ -618,6 +618,8 @@ Main();
 
 # Print profile data in packed binary format (64-bit) to standard out
 sub PrintProfileData {
+  error("Not supported yet; needs to be adapted for multi-value profiles\n");
+
   my $profile = shift;
 
   # print header (64-bit style)
@@ -716,20 +718,23 @@ sub PrintStacks {
   my $symbols = shift;
   my $profile = shift;
 
-  foreach my $k (sort { GetEntry($profile, $b) <=> GetEntry($profile, $a) || $a cmp $b }
-                 keys(%{$profile})) {
+  my $index = HeapProfileIndex();
+  my @sortedKeys = sort { $profile->{$b}[$index] <=> $profile->{$a}[$index] || $a cmp $b } keys(%{$profile});
+
+  foreach my $k (@sortedKeys) {
     my $stack = $k;
 
-    printf("\n[%d bytes leaked]\n", GetEntry($profile, $k));
+    my $counts = $profile->{$k};
+    printf("\n[Leaked %d bytes (%d objects); Allocated %d bytes (%d objects)]\n", $counts->[1], $counts->[0], $counts->[3], $counts->[2]);
 
     for my $symAddress (split /\n/, $stack) {
-	  my $sym = $symAddress;
+      my $sym = $symAddress;
       if (exists($symbols->{$symAddress})) {
         $sym = $symbols->{$symAddress}->[0] . " (" . $symbols->{$symAddress}->[1] . ")";
         if ($main::opt_addresses) {
           $sym = $symAddress . " " . $sym;
         }
-	  }
+      }
       printf("%s\n", $sym);
     }
   }
@@ -778,7 +783,7 @@ sub FilterFrames {
 
   my $result = {};
   foreach my $k (keys(%{$profile})) {
-    my $count = $profile->{$k};
+    my $counts = $profile->{$k};
     my @addrs = split(/\n/, $k);
     my @path = ();
     foreach my $a (@addrs) {
@@ -798,7 +803,7 @@ sub FilterFrames {
     }
     if (scalar(@path) > 0) {
       my $reduced_path = join("\n", @path);
-      AddEntry($result, $reduced_path, $count);
+      AddEntryArray($result, $reduced_path, $counts);
     }
   }
 
@@ -883,7 +888,7 @@ sub RemoveUninterestingFrames {
 
   my $result = {};
   foreach my $k (keys(%{$profile})) {
-    my $count = $profile->{$k};
+    my $counts = $profile->{$k};
     my @addrs = split(/\n/, $k);
     my @path = ();
     foreach my $a (@addrs) {
@@ -900,7 +905,7 @@ sub RemoveUninterestingFrames {
       push(@path, $a);
     }
     my $reduced_path = join("\n", @path);
-    AddEntry($result, $reduced_path, $count);
+    AddEntryArray($result, $reduced_path, $counts);
   }
 
   $result = FilterFrames($symbols, $result);
@@ -929,7 +934,7 @@ sub IgnoreProfile {
   my $ignore = shift;
   my $result = {};
   foreach my $k (keys(%{$profile})) {
-    my $count = $profile->{$k};
+    my $counts = $profile->{$k};
     my @addrs = split(/\n/, $k);
     my $matched = 0;
     foreach my $a (@addrs) {
@@ -940,7 +945,7 @@ sub IgnoreProfile {
       }
     }
     if (!$matched) {
-      AddEntry($result, $k, $count);
+      AddEntryArray($result, $k, $counts);
     }
   }
   return $result;
@@ -948,6 +953,8 @@ sub IgnoreProfile {
 
 # Add A to B
 sub AddProfile {
+  error("Not supported yet; needs to be adapted for multi-value profiles\n");
+
   my $A = shift;
   my $B = shift;
 
@@ -985,6 +992,8 @@ sub MergeSymbols {
 
 # Add A to B
 sub AddPcs {
+  error("Not supported yet; needs to be adapted for multi-value profiles\n");
+
   my $A = shift;
   my $B = shift;
 
@@ -1002,6 +1011,8 @@ sub AddPcs {
 
 # Subtract B from A
 sub SubtractProfile {
+  error("Not supported yet; needs to be adapted for multi-value profiles\n");
+
   my $A = shift;
   my $B = shift;
 
@@ -1024,17 +1035,6 @@ sub SubtractProfile {
   return $R;
 }
 
-# Get entry from profile; zero if not present
-sub GetEntry {
-  my $profile = shift;
-  my $k = shift;
-  if (exists($profile->{$k})) {
-    return $profile->{$k};
-  } else {
-    return 0;
-  }
-}
-
 # Add entry to specified profile
 sub AddEntry {
   my $profile = shift;
@@ -1046,13 +1046,27 @@ sub AddEntry {
   $profile->{$k} += $n;
 }
 
+# Add entry to specified profile
+sub AddEntryArray {
+  my $profile = shift;
+  my $stackKey = shift;
+  my $counts = shift;
+  if (!exists($profile->{$stackKey})) {
+    $profile->{$stackKey} = $counts;
+  } else {
+    for (my $i = 0; $i < scalar @$counts; $i++) {
+      $profile->{$stackKey}[$i] += $counts->[$i];
+    }
+  }
+}
+
 # Add a stack of entries to specified profile, and add them to the $pcs
 # list.
 sub AddEntries {
   my $profile = shift;
   my $pcs = shift;
   my $stack = shift;
-  my $count = shift;
+  my $counts = shift;
   my @k = ();
 
   foreach my $e (split(/\s+/, $stack)) {
@@ -1060,7 +1074,7 @@ sub AddEntries {
     $pcs->{$pc} = 1;
     push @k, $pc;
   }
-  AddEntry($profile, (join "\n", @k), $count);
+  AddEntryArray($profile, (join "\n", @k), $counts);
 }
 
 ##### Code to profile a server dynamically #####
@@ -1803,7 +1817,7 @@ sub ReadHeapProfile {
       my ($n1, $s1, $n2, $s2) = ($1, $2, $3, $4);
       my @counts = AdjustSamples($sample_adjustment, $sampling_algorithm,
                                  $n1, $s1, $n2, $s2);
-      AddEntries($profile, $pcs, FixCallerAddresses($stack), $counts[$index]);
+      AddEntries($profile, $pcs, FixCallerAddresses($stack), \@counts);
     }
   }
 
@@ -1872,13 +1886,13 @@ sub ReadThreadedHeapProfile {
       my @counts = AdjustSamples($sample_adjustment, $sampling_algorithm,
                                  $n1, $s1, $n2, $s2);
       if ($thread eq "*") {
-        AddEntries($profile, $pcs, FixCallerAddresses($stack), $counts[$index]);
+        AddEntries($profile, $pcs, FixCallerAddresses($stack), \@counts);
       } else {
         if (!exists($thread_profiles->{$thread})) {
           $thread_profiles->{$thread} = {};
         }
         AddEntries($thread_profiles->{$thread}, $pcs,
-                   FixCallerAddresses($stack), $counts[$index]);
+                   FixCallerAddresses($stack), \@counts);
       }
     }
   }
